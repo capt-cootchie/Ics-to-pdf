@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICS Curriculum Extractor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: #e8e6e0;
+    color: #111;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #0f0f1f;
+    color: #f0e8d0;
+    padding: 2rem 2.5rem;
+    border-bottom: 3px solid #c9a84c;
+  }
+
+  header h1 { font-size: 1.7rem; font-weight: normal; letter-spacing: 0.03em; }
+  header p { margin-top: 0.4rem; font-size: 0.9rem; color: #b8a880; font-family: monospace; }
+
+  .controls {
+    padding: 1.8rem 2.5rem;
+    background: #f8f7f4;
+    border-bottom: 2px solid #ccc;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .drop-zone {
+    flex: 1;
+    min-width: 260px;
+    border: 2px dashed #888;
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    color: #333;
+    transition: border-color 0.2s, background 0.2s;
+    font-size: 0.9rem;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #0f0f1f;
+    background: #e8e6e0;
+    color: #0f0f1f;
+  }
+  .drop-zone input { display: none; }
+
+  .btn {
+    padding: 0.7rem 1.4rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: bold;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-primary { background: #0f0f1f; color: #f0e8d0; }
+  .btn-secondary { background: #c9a84c; color: #0f0f1f; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .options {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .options label { font-size: 0.85rem; color: #222; font-weight: bold; display: flex; align-items: center; gap: 0.4rem; }
+  .options select {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #999;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background: #fff;
+    color: #111;
+  }
+
+  #status {
+    padding: 0.6rem 2.5rem;
+    font-size: 0.85rem;
+    color: #111;
+    font-family: monospace;
+    font-weight: bold;
+    min-height: 2rem;
+    background: #d8d5cc;
+    border-bottom: 2px solid #bbb;
+  }
+
+  #output {
+    padding: 2rem 2.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .doc-title {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--accent, #0f0f1f);
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.02em;
+  }
+  .doc-subtitle {
+    font-size: 0.9rem;
+    color: #333;
+    font-family: monospace;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+  }
+  .doc-rule {
+    border: none;
+    border-top: 3px solid var(--accent, #0f0f1f);
+    margin-bottom: 2rem;
+  }
+
+  .task-unit {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.2rem;
+    page-break-inside: avoid;
+  }
+
+  .task-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--accent, #0f0f1f);
+    margin-bottom: 0.4rem;
+    font-family: 'Georgia', serif;
+  }
+
+  .task-rule {
+    border: none;
+    border-top: 1px solid #bbb;
+    margin-bottom: 0.8rem;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #fff;
+    background: var(--accent, #0f0f1f);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.8rem;
+    margin-bottom: 0.35rem;
+    font-family: monospace;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .section-body {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: #111;
+  }
+
+  .section-body p { margin-bottom: 0.25rem; }
+
+  @media print {
+    header, .controls, #status, .no-print { display: none !important; }
+    body { background: white; }
+    #output { padding: 0; max-width: 100%; }
+    .task-unit { page-break-inside: avoid; border: 1px solid #ccc; }
+  }
+
+  /* Color themes per curriculum type */
+  .theme-math    { --accent: #1a237e; }
+  .theme-physics { --accent: #7f0000; }
+  .theme-drawing { --accent: #1b4332; }
+  .theme-music   { --accent: #3e2723; }
+  .theme-history { --accent: #263238; }
+  .theme-auto    { --accent: #0f0f1f; }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #555;
+    font-size: 1rem;
+    font-weight: bold;
+  }
+  .empty-state .big { font-size: 3rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ICS Curriculum Extractor</h1>
+  <p>Drop any curriculum .ics file → get all tasks &amp; notes, dates stripped, ready to print or save as PDF</p>
+</header>
+
+<div class="controls">
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".ics">
+    <div>Drop your <strong>.ics</strong> file here, or click to browse</div>
+  </div>
+
+  <div class="options">
+    <label>
+      Theme:
+      <select id="themeSelect">
+        <option value="auto">Auto-detect</option>
+        <option value="theme-math">Math (blue)</option>
+        <option value="theme-physics">Physics (red)</option>
+        <option value="theme-drawing">Drawing (green)</option>
+        <option value="theme-music">Music (brown)</option>
+        <option value="theme-history">History (grey)</option>
+      </select>
+    </label>
+    <button class="btn btn-secondary no-print" id="printBtn" disabled onclick="window.print()">Print / Save PDF</button>
+    <button class="btn btn-primary no-print" id="clearBtn" disabled onclick="clearOutput()">Clear</button>
+  </div>
+</div>
+
+<div id="status">No file loaded.</div>
+
+<div id="output">
+  <div class="empty-state">
+    <div class="big">📋</div>
+    Load a curriculum .ics file to see all tasks here.
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const output = document.getElementById('output');
+const status = document.getElementById('status');
+const printBtn = document.getElementById('printBtn');
+const clearBtn = document.getElementById('clearBtn');
+const themeSelect = document.getElementById('themeSelect');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+function processFile(file) {
+  status.textContent = `Reading: ${file.name}…`;
+  const reader = new FileReader();
+  reader.onload = e => parseAndRender(e.target.result, file.name);
+  reader.readAsText(file, 'utf-8');
+}
+
+function unfold(text) {
+  return text.replace(/\r?\n[ \t]/g, '');
+}
+
+function unescape(s) {
+  return s.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
+}
+
+function getField(block, field) {
+  const unfolded = unfold(block);
+  const m = unfolded.match(new RegExp(`^${field}[;:](.*)$`, 'm'));
+  return m ? m[1].trim() : '';
+}
+
+function detectTheme(filename, calname) {
+  const s = (filename + ' ' + calname).toLowerCase();
+  if (s.includes('math')) return 'theme-math';
+  if (s.includes('physics')) return 'theme-physics';
+  if (s.includes('draw')) return 'theme-drawing';
+  if (s.includes('music')) return 'theme-music';
+  if (s.includes('history')) return 'theme-history';
+  return 'theme-auto';
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderDesc(desc) {
+  const sections = desc.trim().split(/\n\n+/);
+  let html = '';
+  for (const section of sections) {
+    const lines = section.trim().split('\n');
+    if (!lines.length) continue;
+    const header = lines[0].trim();
+    const body = lines.slice(1).join('\n').trim();
+    if (header.endsWith(':') && body) {
+      html += `<div class="section-label">${escapeHtml(header.replace(/:$/, ''))}</div>`;
+      html += `<div class="section-body">`;
+      for (const line of body.split('\n')) {
+        if (line.trim()) html += `<p>${escapeHtml(line.trim())}</p>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div class="section-body">`;
+      for (const line of section.split('\n')) {
+        if (line.trim()) html += `<p>${escapeHtml(line.trim())}</p>`;
+      }
+      html += `</div>`;
+    }
+  }
+  return html;
+}
+
+function parseAndRender(text, filename) {
+  // Get calendar name
+  const calNameMatch = unfold(text).match(/^X-WR-CALNAME:(.*)$/m);
+  const calName = calNameMatch ? calNameMatch[1].trim() : filename.replace('.ics','');
+
+  // Extract events
+  const eventBlocks = [...text.matchAll(/BEGIN:VEVENT([\s\S]*?)END:VEVENT/g)].map(m => m[1]);
+
+  const seen = new Set();
+  const parsed = [];
+
+  for (const block of eventBlocks) {
+    const summary = unescape(getField(block, 'SUMMARY'));
+    const desc = unescape(getField(block, 'DESCRIPTION'));
+    if (!desc || seen.has(desc)) continue;
+    seen.add(desc);
+    // Strip day number from title: "W1 D1 -" -> "W1 -"
+    const title = summary.replace(/ D\d+/g, '');
+    parsed.push({ title, desc });
+  }
+
+  // Theme
+  let theme = themeSelect.value;
+  if (theme === 'auto') theme = detectTheme(filename, calName);
+
+  // Render
+  let html = `
+    <div class="${theme}">
+      <div class="doc-title">${escapeHtml(calName)}</div>
+      <div class="doc-subtitle">Task Reference — All Units (Dates Removed) · ${parsed.length} units</div>
+      <hr class="doc-rule">
+  `;
+
+  for (const item of parsed) {
+    html += `
+      <div class="task-unit">
+        <div class="task-title">${escapeHtml(item.title)}</div>
+        <hr class="task-rule">
+        ${renderDesc(item.desc)}
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+
+  output.innerHTML = html;
+  status.textContent = `✓ Loaded ${filename} — ${parsed.length} unique task units extracted.`;
+  printBtn.disabled = false;
+  clearBtn.disabled = false;
+}
+
+function clearOutput() {
+  output.innerHTML = `<div class="empty-state"><div class="big">📋</div>Load a curriculum .ics file to see all tasks here.</div>`;
+  status.textContent = 'No file loaded.';
+  printBtn.disabled = true;
+  clearBtn.disabled = true;
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>
